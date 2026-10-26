@@ -1,0 +1,307 @@
+---
+title: "Final Project"
+author: "Kirya Caine, Chris Flores, Jerry Cabrialies"
+date: "2026-10-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages}
+# install.packages("tidyverse")   # run once in the console if tidyverse is not installed; left commented so the notebook knits
+library(tidyverse)
+library(ggplot2)
+```
+
+# Introduction
+
+Maximum lifespan varies enormously across mammals, from shrews that live only a few years to elephants and primates that live for decades. In general, larger mammals tend to live longer, but some clades, like primates and bats, live longer than expected for their body size. This raises a larger question: what drives differences in longevity across clades — shared evolutionary history, or ecological and morphological factors like body size?
+
+To investigate this, I combined two open-source datasets: PanTheria, which has morphological, life history, and ecological traits for thousands of mammal species, and AnAge, which has markers of aging across species, including maximum longevity. I use taxonomic Order as a rough measure of shared evolutionary history, and adult body length as my main morphological factor.
+
+Research question: Across mammals, does adult body length predict maximum longevity, and do primates and carnivores differ in maximum longevity, even when body length is taken into account?
+
+# Dataset background and limitations
+
+[TO FILL IN: why and how PanTHERIA and AnAge were collected, what they include, and their limitations.]
+
+Original sources:
+
+- PanTHERIA: Jones, K. E., et al. (2009). PanTHERIA: a species-level database of life history, ecology, and geography of extant and recently extinct mammals. *Ecology*, 90(9), 2648.
+- AnAge: Tacutu, R., et al. (2018). Human Ageing Genomic Resources: new and updated databases. *Nucleic Acids Research*, 46(D1), D1083–D1090. https://genomics.senescence.info/species/
+
+# Part 1: Data wrangling (Week 3)
+
+## Task 1: Filter and select
+
+in the code below, I am writing a csv from the PanTheria open-source dataset, which has morphological and life history parameters for thousands of species. I then subset it. relevant columns: Genus, species, adult body mass, adult body length including head, gestation length, and midrange latitude. Adult body length and body mass are morphological factors, gestation length is a life history factor, and midrange latitude is an ecological factor. Removing any rows with "NA" in any of these columns to get a subset of the data that has no missing values and is workable.
+
+```{r csv and subset}
+url <- "https://raw.githubusercontent.com/pedroj/Megafauna/master/datasets/PanTHERIA_1-0_WR05_Aug2008.txt"
+pantheria_data <- read.delim(url, header = TRUE, sep = "\t", na.strings = "-999")
+write.csv(pantheria_data, "PanTheria_WR05_mammals.csv", row.names = FALSE)
+print("csv file has been created in working directory")
+# View(pantheria_data)
+cleaned_pantheria <-
+  pantheria_data %>%
+  select(MSW05_Genus, MSW05_Species, X5.1_AdultBodyMass_g, X13.1_AdultHeadBodyLen_mm, X9.1_GestationLen_d, X26.4_GR_MidRangeLat_dd) %>%
+  filter(X5.1_AdultBodyMass_g != "NA", X13.1_AdultHeadBodyLen_mm != "NA", X9.1_GestationLen_d != "NA", X26.4_GR_MidRangeLat_dd != "NA")
+# View(cleaned_pantheria)
+```
+
+## Task 2: Joins
+
+using AnAge database, which examines different markers of animal aging across species, including maximum longevity, my outcome variable, and taxonomic Order, which I use as a rough measure of shared evolutionary history. in the code blocks below, I first load in the anage csv. I then make sure that the columns I want to join by, species and genus, agree with each other across datasets by renaming the columns of cleaned_pantheria MSW05_Genus and MSW05_Species to Genus and Species and putting this into a new df, renamed_pantheria. Finally, I join anage and renamed_pantheria under agingpantheria, and move the taxonomy columns to the front.
+
+```{r csv number two}
+anage_url <- "https://gist.githubusercontent.com/Audree/4ef1ebd18ed0d9e9f5a5/raw/"
+anage <- read_csv(anage_url)
+# View(anage)
+```
+
+```{r joining}
+
+renamed_pantheria <- cleaned_pantheria %>%
+rename(Genus = MSW05_Genus)%>%
+rename(Species = MSW05_Species)
+
+agingpantheria <- renamed_pantheria %>%
+  inner_join(anage, by = c("Genus", "Species"))
+
+# move the taxonomy columns to the front, from broadest to most specific
+agingpantheria <- agingpantheria %>% relocate(Kingdom, Phylum, Class, Order, Family, Genus, Species)
+
+# View(agingpantheria)
+glimpse(agingpantheria)
+```
+
+## Task 3: mutate()
+
+taking the ratio of body mass to body length at adulthood and using mutate to add this on as a column on the end of the dataset. The larger the number, the more mass the animal has relative to its body length, giving a second morphological measure alongside body length. I then write the joined dataset into a csv, "pantheria_anage_joined.csv", which I use for the rest of the project.
+
+```{r mutating}
+agingpantheria <- agingpantheria %>%
+mutate(BodyMassLenRatio = X5.1_AdultBodyMass_g / X13.1_AdultHeadBodyLen_mm)
+
+write_csv(agingpantheria, "pantheria_anage_joined.csv")
+```
+
+## Task 4: group_by() and summarize()
+
+I decided to group by taxonomic Order, to see how shared evolutionary history might affect maximum longevity, body length, and body mass to length ratio. I also count the number of species in each order and sort from most to least species, to see which orders are well-represented enough to compare. I am putting this into a new df called order_summaries.
+
+```{r summarytabling}
+order_summaries <-
+agingpantheria %>%
+  group_by(Order) %>%
+  summarize(
+    n_species = n(),
+    median_max_longevity = median(`Maximum longevity (yrs)`, na.rm = TRUE),
+    mean_max_longevity = mean(`Maximum longevity (yrs)`, na.rm = TRUE),
+    median_body_length = median(X13.1_AdultHeadBodyLen_mm),
+    mean_body_mass_length_ratio = mean(BodyMassLenRatio)
+  ) %>%
+  arrange(desc(n_species))
+order_summaries
+```
+
+## Written note
+
+I chose PanTheria and Anage, open source datasets examining different morphological and life history metrics across thousands of species. I sourced the actual data from Github URLs, which are copies of the original PanTheria (Jones et al. 2009) and AnAge (Human Ageing Genomic Resources) databases.
+
+[TO FILL IN after knitting: what stands out in the order summary table — e.g., which orders are best represented, and which have the highest and lowest median max longevity.]
+
+in order to join the datasets in task 2, i had to make sure that the column names were the same so that they could be recognized across both datasets.
+
+# Part 2: Descriptive statistics (Week 4)
+
+For the rest of the project, I use "pantheria_anage_joined.csv", the joined dataset created in Part 1.
+
+## Task 1: Describe a categorical variable
+
+```{r csv and categorical}
+pantheria_anage <- read.csv("pantheria_anage_joined.csv")
+view(pantheria_anage)
+
+pantheria_anage %>%
+  ggplot() +
+  geom_bar(
+    mapping = aes(x= Family)
+  )
+
+pantheria_anage %>%
+  group_by(Family) %>%
+  summarize(count = n())
+```
+
+In the dataset, "pantheria_anage_joined.csv", the family "Bovidae" is most well-represented, with 32 entries (species) in this category. In contrast, many families are only represented by one entry.
+
+## Task 2: Describe a continuous variable
+
+```{r continuous}
+pantheria_anage %>%
+  ggplot() +
+  geom_histogram(
+    mapping = aes(x= Maximum.longevity..yrs.),
+    binwidth = 1  )
+summary(pantheria_anage$Maximum.longevity..yrs.)
+```
+
+In the dataset, "pantheria_anage_joined.csv", maximum longevity is not normally distributed, and rather, has a rightward skew. This means that a five number summary is more appropriate here than mean and standard deviation. Across the dataset, the min maximum longevity is 2.2 years, the median maximum longevity is 19 years, and the max maximum longevity is 65.5 years.
+
+## Task 3: Relationship between two variables
+
+```{r relationship}
+pantheria_anage %>%
+  ggplot() +
+  geom_point(
+    mapping = aes(x = X13.1_AdultHeadBodyLen_mm, y = Maximum.longevity..yrs.)
+  )
+```
+
+In the dataset, "pantheria_anage_joined.csv", adult body length including the head is positively correlated with maximum longevity of that species. However, several species exhibit above median maximum longevity (>19 years) despite having a low adult body length. This suggests that in our dataset, body length alone does not account for differences in maximum longevity between species. This may be better understood by looking at additional variables in the dataset, such as body mass, average latitude, etc.
+
+# Part 3: Inferential statistics (Week 5)
+
+## Task 1: State your hypotheses
+
+To test whether evolutionary history is associated with longevity, I compare two orders. I chose Primates and Carnivora because they are two of the most well-represented orders in the dataset (see the order summary table in Part 1), which gives each group enough species to compare.
+
+H₀: Primates and Carnivora have the same distribution of max lifespan
+
+Hₐ: Primates and Carnivora have different distributions of max lifespan
+
+## Task 2: Check normality
+
+```{r week5 prep the environment}
+library(tidyverse)
+library(ggplot2)
+agingpantheria <- read.csv("pantheria_anage_joined.csv")
+view(agingpantheria)
+```
+
+```{r checking normality}
+##Carnivora
+agingpantheria %>%
+  filter(Order == "Carnivora") %>%
+  ggplot() +
+    geom_histogram(aes(x = Maximum.longevity..yrs.), bins = 10)
+agingpantheria %>%
+  filter(Order == "Carnivora") %>%
+pull(Maximum.longevity..yrs.) %>%
+  qqnorm()
+qqline(agingpantheria %>% filter(Order == "Carnivora") %>% pull(Maximum.longevity..yrs.))
+
+carnivore_longevity <- agingpantheria$Maximum.longevity..yrs.[agingpantheria$Order == "Carnivora"]
+shapiro.test(carnivore_longevity)
+
+##Primates
+agingpantheria %>%
+  filter(Order == "Primates") %>%
+  ggplot() +
+    geom_histogram(aes(x = Maximum.longevity..yrs.), bins = 10)
+agingpantheria %>%
+  filter(Order == "Primates") %>%
+pull(Maximum.longevity..yrs.) %>%
+  qqnorm()
+qqline(agingpantheria %>% filter(Order == "Primates") %>% pull(Maximum.longevity..yrs.))
+
+Primate_longevity <- agingpantheria$Maximum.longevity..yrs.[agingpantheria$Order == "Primates"]
+shapiro.test(Primate_longevity)
+
+```
+
+the shapiro-wilk test reveals that while primate longevity does not significantly deviate from normality (p = 0.11), carnivore longevity does (p = 0.0026). Therefore, I cannot confidently use a statistical test that assumes normality. Therefore, I will use the Wilcoxon rank-sum test.
+
+## Task 3: Run the appropriate test
+
+```{r doing statistical tests}
+
+CarnivoresvPrimates <- agingpantheria %>%
+  filter(Order %in% c("Carnivora", "Primates"))
+
+wilcox.test(Maximum.longevity..yrs. ~ Order, data = CarnivoresvPrimates, exact = FALSE)
+median(Primate_longevity)
+median(carnivore_longevity)
+```
+
+To check whether primates are shorter than carnivores in this dataset, I compare the median adult body length of each order.
+
+```{r body length by order}
+CarnivoresvPrimates %>%
+  group_by(Order) %>%
+  summarize(n_species = n(),
+            median_body_length_mm = median(X13.1_AdultHeadBodyLen_mm))
+```
+
+## Task 4: Written conclusion
+
+Since one of my groups (carnivores) did not have a normal distribution, I decided it would be more robust to use a Wilcoxon rank-sum test instead of a t-test, which assumes normality. I used the Wilcoxon rank-sum test to compare the max longevity of carnivores and primates, two orders within the class Mammalia. The p-value is 2.199e-10, which indicates a significant difference in longevity between carnivores and primates within this dataset; I reject the null hypothesis. In plain language, primates tend to live longer than carnivores (median max longevity: 33.2 vs. 19.0 years). This is an interesting finding because within the dataset, primates tend to be shorter than carnivores [median body length: 625 mm vs. 495 mm], but in the descriptive analyses in Part 2, there appeared to be a positive correlation between body length and max longevity; therefore, this between-order trend is the opposite of what I saw in Part 2. One potential explanation is that within orders, animals with longer body lengths tend to have higher max longevity, but that other factors drive variation between orders.
+
+However, it is important to consider error. Since my p-value indicates that I can reject the null hypothesis, it is possible that I am making a Type I error, or a false positive.
+
+# Part 4: Regression (Week 6)
+
+```{r week6 prep the environment}
+library(tidyverse)
+library(ggplot2)
+agingpantheria <- read.csv("pantheria_anage_joined.csv")
+view(agingpantheria)
+```
+
+## Task 1: Identify your outcome variable
+
+I have chosen to use maximum longevity as my outcome variable, which is a continuous variable. Since it is a continuous variable, I have chosen to use linear regression.
+
+```{r data check}
+##MaxLongev
+  ggplot() +
+    geom_histogram(aes(x = agingpantheria$Maximum.longevity..yrs.), bins = 30)
+```
+
+## Task 2: Fit the model
+
+```{r fit the model}
+# choosing carnivora as reference order since it is the largest/most well-represented in the dataset
+agingpantheria$Order <- relevel(as.factor(agingpantheria$Order), ref = "Carnivora")
+
+# Predict max longevity from adult body length and order
+model_multi <- lm(Maximum.longevity..yrs. ~ X13.1_AdultHeadBodyLen_mm + Order, data = agingpantheria)
+summary(model_multi)
+```
+
+## Task 3: Interpret your regression coefficients
+
+predictor coefficient 1: X13.1_AdultHeadBodyLen_mm
+
+Adult body length in mm predicting maximum longevity in years. Holding taxonomic Order constant, for every 1 mm increase in adult body length, maximum longevity increases by 0.00996 years (~4 days) on average. This predictor is statistically significant (p < 2e-16)
+
+predictor coefficient 2: OrderPrimates
+
+Taxonomic Order (primates) predicting maximum longevity in years. Holding adult body length constant, primates are expected to live 15.5 years longer on average compared to species in the reference Order, Carnivora. This predictor is statistically significant (p < 2e-16).
+
+## Task 4: Run one diagnostic check
+
+```{r diagnostics}
+# Residual plots
+plot(model_multi, which = 1)   # Residuals vs. Fitted
+plot(model_multi, which = 2)   # Normal QQ plot
+```
+
+residuals vs fitted plot: There is a funnel shape from left to right, indicating uneven spread. Lower fitted values have less vertical spread and as fitted values increase there is more spread. This indicates non-constant variance, violating the constant variance assumption of linear regression. However, since the red line stays relatively flat and close to zero, this suggests a reasonably centered general linear trend.
+
+normal dist in the Q-Q plot: While the central residuals follow the reference line closely, the upper tail curves upward substantially, indicating a heavy right-skew in the residuals and suggesting that the residuals are not normally distributed.
+
+## Written paragraph
+
+I fitted a multiple linear regression model to predict maximum longevity from adult body length and taxonomic order. Key results indicate that adult body length is a statistically significant positive predictor of longevity, with max longevity increasing by about 4 days for every mm increase in body length on average according to the model. Additionally, the taxonomic order Primates exhibits a statistically significant positive effect, living 15.5 years longer on average than the baseline reference order, Carnivora, holding body length constant. Overall, the model explains about 72% of the variation in max longevity in this dataset (R² = 0.72, adjusted R² = 0.69).
+
+however, diagnostic checks indicate notable concerns with the model assumptions. the residuals versus fitted plot shows a funnel-like pattern, indicating heteroscedasticity (increased error at higher predicted values). Also, the normal Q-Q plot shows an upper curved tail, indicating right-skewness and non-normally distributed residuals caused by outlier species with exceptionally long lifespans. These diagnostics suggest that applying a logarithmic transformation to the variables may stabilize variance and help this data meet linear model assumptions.
+
+Another limitation is that five orders (Erinaceomorpha, Lagomorpha, Proboscidea, Scandentia, and Tubulidentata) are only represented by one species in the dataset. R flags these species as having "leverage one" in the diagnostic plots, meaning the model fits them exactly, so the coefficients for these orders are not meaningful. For example, the model estimates that Proboscidea live 33 years longer than Carnivora, but this is based on a single species.
+
+# Conclusion
+
+Going back to my larger question of what drives longevity across clades, both evolutionary history and morphology appear to matter in this dataset. Adult body length is a statistically significant positive predictor of max longevity, but taxonomic order explains large differences beyond body length: holding body length constant, primates live about 15.5 years longer than carnivores on average, and together, body length and order explain about 72% of the variation in max longevity. However, taxonomic order is only a rough measure of evolutionary history, several orders are represented by only one species, and the model does not fully meet the constant variance and normality assumptions of linear regression, so these results should be interpreted with caution.
