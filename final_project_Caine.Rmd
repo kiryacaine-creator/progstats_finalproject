@@ -17,24 +17,37 @@ library(ggplot2)
 
 # Introduction
 
+Hi everyone! This is the progstats final project of Kirya, Chris, and Jerry
+
+Kirya: PREP Scholar in Harwell lab, studying developmental neurobiology. I am interested in the evolution and neural mechanism of behavior!
+Chris: PROPEL Scholar in Shoichet lab, studying molecular docking for drug discovery. I get excited by anything biophysical chemistry related, including protein interactions!
+
+
 Maximum lifespan varies enormously across mammals, from shrews that live only a few years to elephants and primates that live for decades. In general, larger mammals tend to live longer, but some clades, like primates and bats, live longer than expected for their body size. This raises a larger question: what drives differences in longevity across clades — shared evolutionary history, or ecological and morphological factors like body size?
 
-To investigate this, I combined two open-source datasets: PanTheria, which has morphological, life history, and ecological traits for thousands of mammal species, and AnAge, which has markers of aging across species, including maximum longevity. I use taxonomic Order as a rough measure of shared evolutionary history, and adult body length as my main morphological factor.
+maxiumum lifespan varies enormously across mammals, from shrews that live only a few years to elephants that live for decades. The general wisdom is that larger mammals tend to live longer, but certain clades like priamtes and bats live longer than expected for their body size. This raises a larger question: what dirves differences in longevity across clades... shared evolutionary history, or ecological and morpholigical factors like body size? This sort of investigation may help us to understand the origin of longevity itself, and provide insights into how and why some humans live longer, healthier, than others. 
 
-Research question: Across mammals, does adult body length predict maximum longevity, and do primates and carnivores differ in maximum longevity, even when body length is taken into account?
+To investigate this, we combined two open-source datasets: PanTHERIA, which has morphological, life history, and ecological traits for thousands of mammal species, and AnAge, which has markers of aging across species, including maximum longevity. I use taxonomic Order as a rough measure of shared evolutionary history and adult body length as the main morphological factor. 
+
+## Research question: Across mammals, does adult body length predict maximum longevity, and do primates and carnivores differ in maximum longevity, even when body length is taken into account?
 
 # Dataset background and limitations
 
-[TO FILL IN: why and how PanTHERIA and AnAge were collected, what they include, and their limitations.]
+
+PanTHERIA is a dataset that was compiled from previously published museum records, literature, and databases over a span of three years. As of 2009, it inclued nearly all known living and recently extinct animal species. Anage is also a compiled dataset that relies on previously published literature. It is constantly being updated and currently has over 4000 species. 
+
+PanTHERIA includes many different variables, including juvenile and adult morphological variables, gestation length, weaning age, litter size, diet, geography, climate, and more. Anage contains data that is specifically geared towards aging research; longevity, male and female age at sexual maturity, metabolic rate, etc. 
+
+Due to the fact that these datasets are assembled from preexisting literature, they are vast, but come with many limitations. One of these limitations is most species are not represented across all measures and variables. for example, many species do not have data for female age at sexual maturity, group composition and size, habitat layer, etc. We dealt with this by limiting our analysis to only species that were represented by all variables of interest to us, which likely produced a bias in our data towards only species that are already well-studied. This therefore may not be representative of the entire animal kingdom. Another limitation associated with these datasets is that they do not account for differences in methods for collecting the raw data. This may vary study-to-study, and differences in methods are often not noted/recorded. This is highlighted by the sample size and specimen origin columns of the data table, which demonstrate that some data comes from captive populations while others wild, and some species have larger sample sizes than others. This almost surely biases that data, but we did not perform any measures to control for this here due to the preliminary nature of these analyses.
 
 Original sources:
 
 - PanTHERIA: Jones, K. E., et al. (2009). PanTHERIA: a species-level database of life history, ecology, and geography of extant and recently extinct mammals. *Ecology*, 90(9), 2648.
 - AnAge: Tacutu, R., et al. (2018). Human Ageing Genomic Resources: new and updated databases. *Nucleic Acids Research*, 46(D1), D1083–D1090. https://genomics.senescence.info/species/
 
-# Part 1: Data wrangling (Week 3)
+# Part 1: Kirya
 
-## Task 1: Filter and select
+## Filter and select data
 
 in the code below, I am writing a csv from the PanTheria open-source dataset, which has morphological and life history parameters for thousands of species. I then subset it. relevant columns: Genus, species, adult body mass, adult body length including head, gestation length, and midrange latitude. Adult body length and body mass are morphological factors, gestation length is a life history factor, and midrange latitude is an ecological factor. Removing any rows with "NA" in any of these columns to get a subset of the data that has no missing values and is workable.
 
@@ -51,7 +64,7 @@ cleaned_pantheria <-
 # View(cleaned_pantheria)
 ```
 
-## Task 2: Joins
+## Joins
 
 using AnAge database, which examines different markers of animal aging across species, including maximum longevity, my outcome variable, and taxonomic Order, which I use as a rough measure of shared evolutionary history. in the code blocks below, I first load in the anage csv. I then make sure that the columns I want to join by, species and genus, agree with each other across datasets by renaming the columns of cleaned_pantheria MSW05_Genus and MSW05_Species to Genus and Species and putting this into a new df, renamed_pantheria. Finally, I join anage and renamed_pantheria under agingpantheria, and move the taxonomy columns to the front.
 
@@ -77,20 +90,9 @@ agingpantheria <- agingpantheria %>% relocate(Kingdom, Phylum, Class, Order, Fam
 glimpse(agingpantheria)
 ```
 
-## Task 3: mutate()
-
-taking the ratio of body mass to body length at adulthood and using mutate to add this on as a column on the end of the dataset. The larger the number, the more mass the animal has relative to its body length, giving a second morphological measure alongside body length. I then write the joined dataset into a csv, "pantheria_anage_joined.csv", which I use for the rest of the project.
-
-```{r mutating}
-agingpantheria <- agingpantheria %>%
-mutate(BodyMassLenRatio = X5.1_AdultBodyMass_g / X13.1_AdultHeadBodyLen_mm)
-
-write_csv(agingpantheria, "pantheria_anage_joined.csv")
-```
-
 ## Task 4: group_by() and summarize()
 
-I decided to group by taxonomic Order, to see how shared evolutionary history might affect maximum longevity, body length, and body mass to length ratio. I also count the number of species in each order and sort from most to least species, to see which orders are well-represented enough to compare. I am putting this into a new df called order_summaries.
+I decided to group by taxonomic Order, to see how shared evolutionary history might affect maximum longevity and body length. I also count the number of species in each order and sort from most to least species, to see which orders are well-represented enough to compare. I am putting this into a new df called order_summaries.
 
 ```{r summarytabling}
 order_summaries <-
@@ -101,7 +103,6 @@ agingpantheria %>%
     median_max_longevity = median(`Maximum longevity (yrs)`, na.rm = TRUE),
     mean_max_longevity = mean(`Maximum longevity (yrs)`, na.rm = TRUE),
     median_body_length = median(X13.1_AdultHeadBodyLen_mm),
-    mean_body_mass_length_ratio = mean(BodyMassLenRatio)
   ) %>%
   arrange(desc(n_species))
 order_summaries
@@ -109,15 +110,15 @@ order_summaries
 
 ## Written note
 
-I chose PanTheria and Anage, open source datasets examining different morphological and life history metrics across thousands of species. I sourced the actual data from Github URLs, which are copies of the original PanTheria (Jones et al. 2009) and AnAge (Human Ageing Genomic Resources) databases.
+We chose PanTheria and Anage, open source datasets examining different morphological and life history metrics across thousands of species. I sourced the actual data from Github URLs, which are copies of the original PanTheria (Jones et al. 2009) and AnAge (Human Ageing Genomic Resources) databases.
 
-[TO FILL IN after knitting: what stands out in the order summary table — e.g., which orders are best represented, and which have the highest and lowest median max longevity.]
+The orders that are best represented here are Carnivora, Artiodactyla, Rodentia, and Primates. We are most interested in Carnivora, with a median max longevity of 19 years, and a median body length of 624 mm, and Primates with a median body length of 495 mm and median max longevity of 33 years. 
 
 in order to join the datasets in task 2, i had to make sure that the column names were the same so that they could be recognized across both datasets.
 
 # Part 2: Descriptive statistics (Week 4)
 
-For the rest of the project, I use "pantheria_anage_joined.csv", the joined dataset created in Part 1.
+For the rest of the project, We use "pantheria_anage_joined.csv", the joined dataset created in Part 1.
 
 ## Task 1: Describe a categorical variable
 
