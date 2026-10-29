@@ -21,6 +21,7 @@ Hi everyone! This is the progstats final project of Kirya, Chris, and Jerry
 
 Kirya: PREP Scholar in Harwell lab, studying developmental neurobiology. I am interested in the evolution and neural mechanism of behavior!
 Chris: PROPEL Scholar in Shoichet lab, studying molecular docking for drug discovery. I get excited by anything biophysical chemistry related, including protein interactions!
+Jerry: PROPEL scholar in DelRosso lab, studying gene regulation. I am broadly interested in transcription, genome organization, and intrinsically disordered proteins!
 
 
 Maximum lifespan varies enormously across mammals, from shrews that live only a few years to elephants and primates that live for decades. In general, larger mammals tend to live longer, but some clades, like primates and bats, live longer than expected for their body size. This raises a larger question: what drives differences in longevity across clades — shared evolutionary history, or ecological and morphological factors like body size?
@@ -45,7 +46,7 @@ Original sources:
 - PanTHERIA: Jones, K. E., et al. (2009). PanTHERIA: a species-level database of life history, ecology, and geography of extant and recently extinct mammals. *Ecology*, 90(9), 2648.
 - AnAge: Tacutu, R., et al. (2018). Human Ageing Genomic Resources: new and updated databases. *Nucleic Acids Research*, 46(D1), D1083–D1090. https://genomics.senescence.info/species/
 
-# Part 1: Kirya
+# Part 1: 
 
 ## Filter and select data
 
@@ -90,9 +91,9 @@ agingpantheria <- agingpantheria %>% relocate(Kingdom, Phylum, Class, Order, Fam
 glimpse(agingpantheria)
 ```
 
-## Task 4: group_by() and summarize()
+## grouping and summaries
 
-I decided to group by taxonomic Order, to see how shared evolutionary history might affect maximum longevity and body length. I also count the number of species in each order and sort from most to least species, to see which orders are well-represented enough to compare. I am putting this into a new df called order_summaries.
+we decided to group by taxonomic Order, to see how shared evolutionary history might affect maximum longevity and body length. I also count the number of species in each order and sort from most to least species, to see which orders are well-represented enough to compare. I am putting this into a new df called order_summaries.
 
 ```{r summarytabling}
 order_summaries <-
